@@ -1008,11 +1008,14 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
                 content = content.replace("[[训练时间]]", "2023年")
             else:
                 history.append({"role": "assistant", "metadata": metadata, "content": content})
-                content = "\n".join(content.split("\n")[1:-1])
-                def tool_call(**kwargs):
-                    return kwargs
-                parameters = eval(content)
-                content = {"name": metadata.strip(), "parameters": parameters}
+                if history[0]["role"] == "system" and "tools" in history[0]:
+                    content = "\n".join(content.split("\n")[1:-1])
+                    def tool_call(**kwargs):
+                        return kwargs
+                    parameters = eval(content)
+                    content = {"name": metadata.strip(), "parameters": parameters}
+                else:
+                    content = {"name": metadata.strip(), "content": content}
         return content, history
 
     @torch.inference_mode()
@@ -1041,7 +1044,6 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
     def stream_chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, role: str = "user",
                     past_key_values=None,max_length: int = 8192, do_sample=True, top_p=0.8, temperature=0.8,
                     logits_processor=None, return_past_key_values=False, **kwargs):
-        print(history)
         if history is None:
             history = []
         if logits_processor is None:
