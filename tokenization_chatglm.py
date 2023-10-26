@@ -1,3 +1,4 @@
+import json
 import os
 import torch
 from typing import List, Optional, Union, Dict
@@ -173,19 +174,23 @@ class ChatGLMTokenizer(PreTrainedTokenizer):
         prefix_tokens = [self.get_command("[gMASK]"), self.get_command("sop")]
         return prefix_tokens
 
-    def build_chat_input(self, query, history=None, system=None):
+    def build_single_message(self, role, metadata, message):
+        assert role in ["system", "user", "assistant", "observation"], role
+        role_tokens = [self.get_command(f"<|{role}|>")] + self.tokenizer.encode(f"{metadata}\n")
+        message_tokens = self.tokenizer.encode(message)
+        tokens = role_tokens + message_tokens
+        return tokens
+
+    def build_chat_input(self, query, history=None, role="user"):
         if history is None:
             history = []
         input_ids = []
-        if system is not None:
-            input_ids.extend(
-                [self.get_command("<|system|>")] + self.tokenizer.encode("\n") + self.tokenizer.encode(system))
-        for i, (old_query, old_response) in enumerate(history):
-            input_ids.extend(
-                [self.get_command("<|user|>")] + self.tokenizer.encode("\n") + self.tokenizer.encode(old_query))
-            input_ids.extend(
-                [self.get_command("<|assistant|>")] + self.tokenizer.encode("\n") + self.tokenizer.encode(old_response))
-        input_ids.extend([self.get_command("<|user|>")] + self.tokenizer.encode("\n") + self.tokenizer.encode(query))
+        for item in history:
+            content = item["content"]
+            if item["role"] == "system" and "tools" in item:
+                content = content + "\n" + json.dumps(item["tools"], indent=4, ensure_ascii=False)
+            input_ids.extend(self.build_single_message(item["role"], item.get("metadata", ""), content))
+        input_ids.extend(self.build_single_message(role, "", query))
         input_ids.extend([self.get_command("<|assistant|>")])
         return self.batch_encode_plus([input_ids], return_tensors="pt", is_split_into_words=True)
 

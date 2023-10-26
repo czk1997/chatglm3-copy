@@ -996,18 +996,23 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
             for layer_past in past
         )
 
-    def process_response(self, response):
-        response = response.strip()
-        response = response.replace("[[训练时间]]", "2023年")
-        return response
-
-    def build_inputs(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, system: str = None):
-        inputs = tokenizer.build_chat_input(query, history=history, system=system)
-        inputs = inputs.to(self.device)
-        return inputs
+    def process_response(self, output, history):
+        content = ""
+        for response in output.split("<|assistant|>"):
+            metadata, content = response.split("\n", maxsplit=1)
+            history.append({"role": "assistant", "metadata": metadata, "content": content})
+            if not metadata.strip():
+                content = content.strip()
+                content = content.replace("[[训练时间]]", "2023年")
+            else:
+                content = "\n".join(content.split("\n")[1:-1])
+                def tool_call(**kwargs):
+                    return kwargs
+                content = eval(content)
+        return content, history
 
     @torch.inference_mode()
-    def chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, system: str = None,
+    def chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, role: str = None,
              max_length: int = 8192, num_beams=1, do_sample=True, top_p=0.8, temperature=0.8, logits_processor=None,
              **kwargs):
         if history is None:
@@ -1017,17 +1022,19 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         logits_processor.append(InvalidScoreLogitsProcessor())
         gen_kwargs = {"max_length": max_length, "num_beams": num_beams, "do_sample": do_sample, "top_p": top_p,
                       "temperature": temperature, "logits_processor": logits_processor, **kwargs}
-        inputs = self.build_inputs(tokenizer, query, history=history, system=system)
-        eos_token_id = [tokenizer.eos_token_id, tokenizer.get_command("<|user|>")]
+        inputs = tokenizer.build_chat_input(query, history=history, role=role)
+        inputs = inputs.to(self.device)
+        eos_token_id = [tokenizer.eos_token_id, tokenizer.get_command("<|user|>"),
+                        tokenizer.get_command("<|observation|>")]
         outputs = self.generate(**inputs, **gen_kwargs, eos_token_id=eos_token_id)
         outputs = outputs.tolist()[0][len(inputs["input_ids"][0]):]
         response = tokenizer.decode(outputs)
-        response = self.process_response(response)
-        history = history + [(query, response)]
+        history.append({"role": role, "content": query})
+        response, history = self.process_response(response, history)
         return response, history
 
     @torch.inference_mode()
-    def stream_chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, system: str = None,
+    def stream_chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, role: str = None,
                     past_key_values=None,max_length: int = 8192, do_sample=True, top_p=0.8, temperature=0.8,
                     logits_processor=None, return_past_key_values=False, **kwargs):
         if history is None:
@@ -1040,9 +1047,10 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         gen_kwargs = {"max_length": max_length, "do_sample": do_sample, "top_p": top_p,
                       "temperature": temperature, "logits_processor": logits_processor, **kwargs}
         if past_key_values is None:
-            inputs = self.build_inputs(tokenizer, query, history=history, system=system)
+            inputs = tokenizer.build_chat_input(query, history=history, role=role)
         else:
-            inputs = self.build_inputs(tokenizer, query)
+            inputs = tokenizer.build_chat_input(query, role=role)
+        input = inputs.to(self.device)
         if past_key_values is not None:
             past_length = past_key_values[0][0].shape[0]
             if self.transformer.pre_seq_len is not None:
