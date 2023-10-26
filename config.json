@@ -1,5 +1,5 @@
 {
-  "_name_or_path": "THUDM/chatglm2-6b",
+  "_name_or_path": "THUDM/chatglm3-6b",
   "model_type": "chatglm",
   "architectures": [
     "ChatGLMModel"
@@ -35,7 +35,7 @@
   "seq_length": 32768,
   "use_cache": true,
   "torch_dtype": "float16",
-  "transformers_version": "4.27.1",
+  "transformers_version": "4.30.2",
   "tie_word_embeddings": false,
   "eos_token_id": 2,
   "pad_token_id": 0
