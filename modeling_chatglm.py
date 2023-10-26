@@ -1001,19 +1001,15 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         response = response.replace("[[训练时间]]", "2023年")
         return response
 
-    def build_inputs(self, tokenizer, query: str, history: List[Tuple[str, str]] = None):
-        inputs = tokenizer.build_chat_input(query, history=history)
-        inputs = inputs.to(self.device)
-        return inputs
-
-    def build_stream_inputs(self, tokenizer, query: str, history: List[Tuple[str, str]] = None):
-        inputs = tokenizer.build_chat_input(query)
+    def build_inputs(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, system: str = None):
+        inputs = tokenizer.build_chat_input(query, history=history, system=system)
         inputs = inputs.to(self.device)
         return inputs
 
     @torch.inference_mode()
-    def chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, max_length: int = 8192, num_beams=1,
-             do_sample=True, top_p=0.8, temperature=0.8, logits_processor=None, **kwargs):
+    def chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, system: str = None,
+             max_length: int = 8192, num_beams=1, do_sample=True, top_p=0.8, temperature=0.8, logits_processor=None,
+             **kwargs):
         if history is None:
             history = []
         if logits_processor is None:
@@ -1021,7 +1017,7 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         logits_processor.append(InvalidScoreLogitsProcessor())
         gen_kwargs = {"max_length": max_length, "num_beams": num_beams, "do_sample": do_sample, "top_p": top_p,
                       "temperature": temperature, "logits_processor": logits_processor, **kwargs}
-        inputs = self.build_inputs(tokenizer, query, history=history)
+        inputs = self.build_inputs(tokenizer, query, history=history, system=system)
         eos_token_id = [tokenizer.eos_token_id, tokenizer.get_command("<|user|>")]
         outputs = self.generate(**inputs, **gen_kwargs, eos_token_id=eos_token_id)
         outputs = outputs.tolist()[0][len(inputs["input_ids"][0]):]
@@ -1031,21 +1027,22 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         return response, history
 
     @torch.inference_mode()
-    def stream_chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, past_key_values=None,
-                    max_length: int = 8192, do_sample=True, top_p=0.8, temperature=0.8, logits_processor=None,
-                    return_past_key_values=False, **kwargs):
+    def stream_chat(self, tokenizer, query: str, history: List[Tuple[str, str]] = None, system: str = None,
+                    past_key_values=None,max_length: int = 8192, do_sample=True, top_p=0.8, temperature=0.8,
+                    logits_processor=None, return_past_key_values=False, **kwargs):
         if history is None:
             history = []
         if logits_processor is None:
             logits_processor = LogitsProcessorList()
         logits_processor.append(InvalidScoreLogitsProcessor())
-        eos_token_id = [tokenizer.eos_token_id, tokenizer.get_command("<|user|>")]
+        eos_token_id = [tokenizer.eos_token_id, tokenizer.get_command("<|user|>"),
+                        tokenizer.get_command("<|observation|>")]
         gen_kwargs = {"max_length": max_length, "do_sample": do_sample, "top_p": top_p,
                       "temperature": temperature, "logits_processor": logits_processor, **kwargs}
-        if past_key_values is None and not return_past_key_values:
-            inputs = self.build_inputs(tokenizer, query, history=history)
+        if past_key_values is None:
+            inputs = self.build_inputs(tokenizer, query, history=history, system=system)
         else:
-            inputs = self.build_stream_inputs(tokenizer, query, history=history)
+            inputs = self.build_inputs(tokenizer, query)
         if past_key_values is not None:
             past_length = past_key_values[0][0].shape[0]
             if self.transformer.pre_seq_len is not None:

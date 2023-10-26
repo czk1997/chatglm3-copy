@@ -67,7 +67,9 @@ class SPTokenizer:
 
     def convert_id_to_token(self, index):
         """Converts an index (integer) in a token (str) using the vocab."""
-        if index in self.index_special_tokens or index in [self.eos_id, self.bos_id, self.pad_id] or index < 0:
+        if index in self.index_special_tokens:
+            return self.index_special_tokens[index]
+        if index in [self.eos_id, self.bos_id, self.pad_id] or index < 0:
             return ""
         return self.sp_model.IdToPiece(index)
 
@@ -171,10 +173,13 @@ class ChatGLMTokenizer(PreTrainedTokenizer):
         prefix_tokens = [self.get_command("[gMASK]"), self.get_command("sop")]
         return prefix_tokens
 
-    def build_chat_input(self, query, history=None):
+    def build_chat_input(self, query, history=None, system=None):
         if history is None:
             history = []
         input_ids = []
+        if system is not None:
+            input_ids.extend(
+                [self.get_command("<|system|>")] + self.tokenizer.encode("\n") + self.tokenizer.encode(system))
         for i, (old_query, old_response) in enumerate(history):
             input_ids.extend(
                 [self.get_command("<|user|>")] + self.tokenizer.encode("\n") + self.tokenizer.encode(old_query))
