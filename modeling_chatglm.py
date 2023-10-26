@@ -38,11 +38,11 @@ if sys.platform != 'darwin':
 
 logger = logging.get_logger(__name__)
 
-_CHECKPOINT_FOR_DOC = "THUDM/ChatGLM2-6B"
-_CONFIG_FOR_DOC = "ChatGLM6BConfig"
+_CHECKPOINT_FOR_DOC = "THUDM/ChatGLM"
+_CONFIG_FOR_DOC = "ChatGLMConfig"
 
 CHATGLM_6B_PRETRAINED_MODEL_ARCHIVE_LIST = [
-    "THUDM/chatglm2-6b",
+    "THUDM/chatglm3-6b",
     # See all ChatGLM models at https://huggingface.co/models?filter=chatglm
 ]
 
