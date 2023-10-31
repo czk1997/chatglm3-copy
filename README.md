@@ -75,7 +75,7 @@ For more instructions, including how to run CLI and web demos, and model quantiz
 
 本仓库的代码依照 [Apache-2.0](LICENSE) 协议开源，ChatGLM3-6B 模型的权重的使用则需要遵循 [Model License](MODEL_LICENSE)。
 
-The code in this repository is open-sourced under the [Apache-2.0 license](LICENSE), while the use of the ChatGLM3-6B model weights needs to comply with the [Model License]([Apache-2.0](LICENSE)).
+The code in this repository is open-sourced under the [Apache-2.0 license](LICENSE), while the use of the ChatGLM3-6B model weights needs to comply with the [Model License](MODEL_LICENSE).
 
 ## 引用 (Citation)
 
