@@ -83,7 +83,7 @@ class SPTokenizer:
         """Converts an index (integer) in a token (str) using the vocab."""
         if index in self.index_special_tokens:
             return self.index_special_tokens[index]
-        if index in [self.eos_id, self.bos_id, self.pad_id] or index < 0:
+        if index in [self.eos_id, self.bos_id, self.pad_id] or index < 0 or index > self.sp_model.vocab_size():
             return ""
         return self.sp_model.IdToPiece(index)
 
