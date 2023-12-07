@@ -1000,7 +1000,10 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         content = ""
         history = deepcopy(history)
         for response in output.split("<|assistant|>"):
-            metadata, content = response.split("\n", maxsplit=1)
+            if "\n" in response:
+                metadata, content = response.split("\n", maxsplit=1)
+            else:
+                metadata, content = "", response
             if not metadata.strip():
                 content = content.strip()
                 history.append({"role": "assistant", "metadata": metadata, "content": content})
